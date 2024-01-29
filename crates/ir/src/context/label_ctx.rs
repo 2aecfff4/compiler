@@ -1,62 +1,11 @@
 use crate::{
-    context::{function::Function, types::Types, values::Values},
-    handles::{FunctionHandle, LabelHandle, TypeHandle, ValueHandle},
+    function::Function,
     instruction::{BinaryOp, CastOp, Instruction, IntCompareOp, UnaryOp},
+    label::Label,
+    label::LabelData,
+    ty::{Type, TypeKind, Types},
+    value::{Value, Values},
 };
-
-pub(super) struct Label {
-    pub name: String,
-    pub instructions: Vec<Instruction>,
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////
-// Labels
-
-///
-pub(super) struct Labels {
-    labels: Vec<Label>,
-}
-
-impl Labels {
-    pub fn new() -> Self {
-        Self { labels: Vec::new() }
-    }
-
-    pub fn create(&mut self, name: &str) -> LabelHandle {
-        let index = self.labels.len();
-        self.labels.push(Label {
-            name: name.to_string(),
-            instructions: Vec::new(),
-        });
-
-        LabelHandle::new(index.try_into().unwrap())
-    }
-
-    pub fn get(&self, handle: LabelHandle) -> Option<&Label> {
-        let index = handle.id();
-        if index < self.labels.len() {
-            Some(&self.labels[index])
-        } else {
-            None
-        }
-    }
-
-    pub fn get_mut(&mut self, handle: LabelHandle) -> Option<&mut Label> {
-        let index = handle.id();
-        if index < self.labels.len() {
-            Some(&mut self.labels[index])
-        } else {
-            None
-        }
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = (u32, &Label)> {
-        self.labels
-            .iter()
-            .enumerate()
-            .map(|(id, label)| (id as u32, label))
-    }
-}
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // LabelContext
@@ -68,7 +17,7 @@ macro_rules! impl_arithmetic_binary {
     ),*} => {
         $(
             $(#[$($attrs)*])*
-            pub fn $name(&mut self, lhs: ValueHandle, rhs: ValueHandle) -> ValueHandle {
+            pub fn $name(&mut self, lhs: Value, rhs: Value) -> Value {
                 self.arithmetic_binary(lhs, $op, rhs)
             }
         )*
@@ -82,7 +31,7 @@ macro_rules! impl_arithmetic_unary {
     ),*} => {
         $(
             $(#[$($attrs)*])*
-            pub fn $name(&mut self, value: ValueHandle) -> ValueHandle {
+            pub fn $name(&mut self, value: Value) -> Value {
                 self.arithmetic_unary($op, value)
             }
         )*
@@ -96,7 +45,7 @@ macro_rules! impl_cast {
     ),*} => {
         $(
             $(#[$($attrs)*])*
-            pub fn $name(&mut self, to_type: TypeHandle, value: ValueHandle) -> ValueHandle {
+            pub fn $name(&mut self, to_type: Type, value: Value) -> Value {
                 self.cast($op, to_type, value)
             }
         )*
@@ -110,7 +59,7 @@ macro_rules! impl_int_compare {
     ),*} => {
         $(
             $(#[$($attrs)*])*
-            pub fn $name(&mut self, lhs: ValueHandle, rhs: ValueHandle,) -> ValueHandle {
+            pub fn $name(&mut self, lhs: Value, rhs: Value,) -> Value {
                 self.int_compare(lhs, $op, rhs)
             }
         )*
@@ -119,17 +68,17 @@ macro_rules! impl_int_compare {
 
 ///
 pub struct LabelContext<'a> {
-    types: &'a Types,
+    types: &'a mut Types,
     values: &'a mut Values,
-    label: &'a mut Label,
+    label: &'a mut LabelData,
 }
 
 impl<'a> LabelContext<'a> {
     ///
     pub(super) fn new(
-        types: &'a Types,
+        types: &'a mut Types,
         values: &'a mut Values,
-        label: &'a mut Label,
+        label: &'a mut LabelData,
     ) -> Self {
         Self {
             types,
@@ -204,43 +153,63 @@ impl<'a> LabelContext<'a> {
     }
 
     ///
-    fn with_output<Func>(&mut self, func: Func) -> ValueHandle
+    fn with_output<Func>(&mut self, ty: Type, func: Func) -> Value
     where
-        Func: FnOnce(ValueHandle) -> Instruction,
+        Func: FnOnce(Value) -> Instruction,
     {
-        let value = self.values.alloc();
+        let value = self.values.alloc(ty);
         let instruction = func(value);
         self.insert_instruction(instruction);
 
         value
     }
 
+    fn validate_values_types(
+        &self,
+        a: Value, //
+        b: Value,
+    ) -> Type {
+        let a_type = self.values.get(a).ty();
+        let b_type = self.values.get(b).ty();
+        assert!(self.types.types_match(a_type, b_type));
+        a_type
+    }
+
     ///
     fn arithmetic_binary(
         &mut self,
-        lhs: ValueHandle, //
+        lhs: Value, //
         op: BinaryOp,
-        rhs: ValueHandle,
-    ) -> ValueHandle {
-        self.with_output(|dst| Instruction::ArithmeticBinary { dst, lhs, op, rhs })
+        rhs: Value,
+    ) -> Value {
+        let ty = self.validate_values_types(lhs, rhs);
+
+        self.with_output(ty, |dst| Instruction::ArithmeticBinary {
+            dst,
+            lhs,
+            op,
+            rhs,
+        })
     }
 
     ///
-    fn arithmetic_unary(&mut self, op: UnaryOp, value: ValueHandle) -> ValueHandle {
-        self.with_output(|dst| Instruction::ArithmeticUnary { dst, op, value })
+    fn arithmetic_unary(&mut self, op: UnaryOp, value: Value) -> Value {
+        let ty = self.values.get(value).ty();
+
+        self.with_output(ty, |dst| Instruction::ArithmeticUnary { dst, op, value })
     }
 
     ///
-    pub fn branch(&mut self, target: LabelHandle) {
+    pub fn branch(&mut self, target: Label) {
         self.insert_instruction(Instruction::Branch { target });
     }
 
     ///
     pub fn branch_conditional(
         &mut self,
-        condition: ValueHandle,
-        on_true: LabelHandle,
-        on_false: LabelHandle,
+        condition: Value,
+        on_true: Label,
+        on_false: Label,
     ) {
         self.insert_instruction(Instruction::BranchConditional {
             condition,
@@ -252,20 +221,15 @@ impl<'a> LabelContext<'a> {
     /// #TODO:
     pub fn call(
         &mut self,
-        function: FunctionHandle, //
-        arguments: &[ValueHandle],
-    ) -> Option<Vec<ValueHandle>> {
+        function: Function, //
+        arguments: &[Value],
+    ) -> Option<Vec<Value>> {
         todo!()
     }
 
     ///
-    fn cast(
-        &mut self,
-        cast_op: CastOp,
-        to_type: TypeHandle,
-        value: ValueHandle,
-    ) -> ValueHandle {
-        self.with_output(|dst| Instruction::Cast {
+    fn cast(&mut self, cast_op: CastOp, to_type: Type, value: Value) -> Value {
+        self.with_output(to_type, |dst| Instruction::Cast {
             cast_op,
             to_type,
             dst,
@@ -276,20 +240,45 @@ impl<'a> LabelContext<'a> {
     ///
     pub fn get_element_ptr(
         &mut self,
-        source: ValueHandle, //
-        index: ValueHandle,
-    ) -> ValueHandle {
-        self.with_output(|dst| Instruction::GetElementPtr { dst, source, index })
+        ptr: Value, //
+        index: Value,
+    ) -> Value {
+        let ptr_type = self.values.get(ptr).ty();
+        let index_type = self.values.get(index).ty();
+        assert!(self.types.is_pointer(ptr_type));
+
+        let ty = self.types.strip_pointer(ptr_type).unwrap();
+
+        if self.types.is_struct(ty) {
+            assert!(self.types.is_arithmetic(index_type));
+            // #TODO: The `index` should be a constant
+            todo!()
+        } else if self.types.is_pointer(ty) {
+            self.with_output(ptr_type, |dst| Instruction::GetElementPtr {
+                dst,
+                ptr,
+                index,
+            })
+        } else {
+            panic!("Invalid `ptr` type")
+        }
     }
 
     ///
     fn int_compare(
         &mut self,
-        lhs: ValueHandle, //
+        lhs: Value, //
         pred: IntCompareOp,
-        rhs: ValueHandle,
-    ) -> ValueHandle {
-        self.with_output(|dst| Instruction::IntCompare {
+        rhs: Value,
+    ) -> Value {
+        self.validate_values_types(lhs, rhs);
+
+        // TODO: It is a basic type. It should not be created every single time.
+        let ty = self.types.create(TypeKind::Integer {
+            num_bits: 1,
+            is_signed: false,
+        });
+        self.with_output(ty, |dst| Instruction::IntCompare {
             dst,
             lhs,
             pred,
@@ -298,24 +287,27 @@ impl<'a> LabelContext<'a> {
     }
 
     ///
-    pub fn load(&mut self, ptr: ValueHandle) -> ValueHandle {
-        self.with_output(|dst| Instruction::Load { dst, ptr })
+    pub fn load(&mut self, ptr: Value) -> Value {
+        let ptr_type = self.values.get(ptr).ty();
+        assert!(self.types.is_pointer(ptr_type));
+
+        let ty = self.types.strip_pointer(self.values.get(ptr).ty()).unwrap();
+
+        self.with_output(ty, |dst| Instruction::Load { dst, ptr })
     }
 
     ///
-    pub fn ret(&mut self, values: Option<&[ValueHandle]>) {
+    pub fn ret(&mut self, values: Option<&[Value]>) {
         let values = values.map(|values| values.to_vec());
         self.insert_instruction(Instruction::Return { values });
     }
 
     ///
-    pub fn select(
-        &mut self,
-        condition: ValueHandle,
-        on_true: ValueHandle,
-        on_false: ValueHandle,
-    ) -> ValueHandle {
-        self.with_output(|dst| Instruction::Select {
+    pub fn select(&mut self, condition: Value, on_true: Value, on_false: Value) -> Value {
+        let ty = self.validate_values_types(on_true, on_false);
+        // #TODO: Ensure that the condition is 1 bit wide.
+
+        self.with_output(ty, |dst| Instruction::Select {
             dst,
             condition,
             on_true,
@@ -324,12 +316,16 @@ impl<'a> LabelContext<'a> {
     }
 
     ///
-    pub fn stack_alloc(&mut self, ty: TypeHandle, size: usize) -> ValueHandle {
-        self.with_output(|dst| Instruction::StackAlloc { dst, ty, size })
+    pub fn stack_alloc(&mut self, ty: Type, size: usize) -> Value {
+        let ty = self.types.add_pointer(ty);
+        self.with_output(ty, |dst| Instruction::StackAlloc { dst, ty, size })
     }
 
     ///
-    pub fn store(&mut self, ptr: ValueHandle, value: ValueHandle) {
+    pub fn store(&mut self, ptr: Value, value: Value) {
+        let ptr_type = self.values.get(ptr).ty();
+        assert!(self.types.is_pointer(ptr_type));
+
         self.insert_instruction(Instruction::Store { ptr, value });
     }
 }

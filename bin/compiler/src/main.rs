@@ -1,15 +1,16 @@
 use ir::{
     context::Context,
-    ty::{Float, Integer, Type, TypeKind},
+    ty::{Type, TypeKind},
 };
 
 fn main() {
     let mut context = Context::new();
 
-    let i32_type =
-        context.create_type(Type::new(TypeKind::Integer { kind: Integer::I32 }, None));
-    let f32_type =
-        context.create_type(Type::new(TypeKind::Float { kind: Float::F32 }, None));
+    let i32_type = context.create_type(TypeKind::Integer {
+        num_bits: 32,
+        is_signed: true,
+    });
+    let f32_type = context.create_type(TypeKind::Float { num_bits: 32 });
 
     {
         let function =

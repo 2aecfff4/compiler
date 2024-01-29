@@ -1,8 +1,9 @@
-use crate::handles::{FunctionHandle, LabelHandle, TypeHandle, ValueHandle};
+use smallvec::{smallvec, SmallVec};
+
+use crate::{function::Function, label::Label, ty::Type, value::Value};
 
 ///
-#[derive(Debug, Clone, strum::Display)]
-#[strum(serialize_all = "snake_case")]
+#[derive(Debug, Clone)]
 pub(crate) enum BinaryOp {
     Add,
     Sub,
@@ -18,16 +19,14 @@ pub(crate) enum BinaryOp {
 }
 
 ///
-#[derive(Debug, Clone, strum::Display)]
-#[strum(serialize_all = "snake_case")]
+#[derive(Debug, Clone)]
 pub(crate) enum UnaryOp {
     Neg,
     Not,
 }
 
 ///
-#[derive(Debug, Clone, strum::Display)]
-#[strum(serialize_all = "snake_case")]
+#[derive(Debug, Clone)]
 pub(crate) enum CastOp {
     BitCast,
     SignExtend,
@@ -48,86 +47,88 @@ pub(crate) enum IntCompareOp {
     LessThanOrEqual,
 }
 
-impl std::fmt::Display for IntCompareOp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            IntCompareOp::Equal => write!(f, "eq"),
-            IntCompareOp::NotEqual => write!(f, "neq"),
-            IntCompareOp::GreaterThan => write!(f, "gt"),
-            IntCompareOp::GreaterThanOrEqual => write!(f, "gte"),
-            IntCompareOp::LessThan => write!(f, "lt"),
-            IntCompareOp::LessThanOrEqual => write!(f, "lte"),
-        }
-    }
-}
-
 ///
 #[derive(Debug, Clone)]
 pub(crate) enum Instruction {
     ArithmeticBinary {
-        dst: ValueHandle,
-        lhs: ValueHandle,
+        dst: Value,
+        lhs: Value,
         op: BinaryOp,
-        rhs: ValueHandle,
+        rhs: Value,
     },
     ArithmeticUnary {
-        dst: ValueHandle,
+        dst: Value,
         op: UnaryOp,
-        value: ValueHandle,
+        value: Value,
     },
     Branch {
-        target: LabelHandle,
+        target: Label,
     },
     BranchConditional {
-        condition: ValueHandle,
-        on_true: LabelHandle,
-        on_false: LabelHandle,
+        condition: Value,
+        on_true: Label,
+        on_false: Label,
     },
     Call {
         /// Handle to the function being called.
-        function: FunctionHandle,
+        function: Function,
         /// Arguments passed to the function.
-        arguments: Vec<ValueHandle>,
+        arguments: Vec<Value>,
         /// Values where the function return values are going to be stored.
-        dst: Vec<ValueHandle>,
+        dst: Vec<Value>,
     },
     Cast {
         cast_op: CastOp,
-        to_type: TypeHandle,
-        dst: ValueHandle,
-        value: ValueHandle,
+        to_type: Type,
+        dst: Value,
+        value: Value,
     },
     GetElementPtr {
-        dst: ValueHandle,
-        source: ValueHandle,
-        index: ValueHandle,
+        dst: Value,
+        ptr: Value,
+        index: Value,
     },
     IntCompare {
-        dst: ValueHandle,
-        lhs: ValueHandle,
-        rhs: ValueHandle,
         pred: IntCompareOp,
+        dst: Value,
+        lhs: Value,
+        rhs: Value,
     },
     Load {
-        dst: ValueHandle,
-        ptr: ValueHandle,
+        dst: Value,
+        ptr: Value,
     },
     Return {
-        values: Option<Vec<ValueHandle>>,
+        values: Option<Vec<Value>>,
     },
     Select {
-        dst: ValueHandle,
-        condition: ValueHandle,
-        on_true: ValueHandle,
-        on_false: ValueHandle,
+        dst: Value,
+        condition: Value,
+        on_true: Value,
+        on_false: Value,
     },
     StackAlloc {
-        dst: ValueHandle,
+        dst: Value,
+        ty: Type,
         size: usize,
-        ty: TypeHandle,
     },
     Store {
-        ptr: ValueHandle,
-        value: ValueHandle,
+        ptr: Value,
+        value: Value,
     },
+}
+
+impl Instruction {
+    /// Retrieves the target labels associated with this instruction.
+    /// Returns `None` for instructions without targets.
+    pub fn targets(&self) -> Option<SmallVec<[Label; 8]>> {
+        match self {
+            Instruction::Return { .. } => Some(smallvec![]),
+            Instruction::Branch { target } => Some(smallvec![*target]),
+            Instruction::BranchConditional {
+                on_true, on_false, ..
+            } => Some(smallvec![*on_true, *on_false]),
+            _ => None,
+        }
+    }
 }
