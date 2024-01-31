@@ -1,31 +1,49 @@
 mod ast;
 mod lexer;
+mod parser;
 
 use ir::{
     context::Context,
     ty::{Type, TypeKind},
 };
 
-use crate::lexer::Lexer;
+use crate::{lexer::Lexer, parser::Parser};
 
 fn main() {
     // 20
     let source = "
-        fn mul(a: i32, b: i32) -> i32 {
-            return a * b;
+        fn test(a: i32, b: i32) -> i32 {
+            for i in 0..10 {                
+                while i > b {
+                    {
+                        if x > b {
+                            a *= x;
+                        } else {
+                            b = x;
+                        }
+                        let var: u32 = 12;
+                    }
+                }
+            }
+
+            return 10 / a * b / (a + a) / 10 > 10;
         }
     ";
     let mut lexer = Lexer::new(source);
     let tokens = lexer.lex();
+    let mut parser = Parser::new(&lexer, tokens);
+    let module = parser.parse();
 
-    for token in tokens {
-        let kind = lexer.get_token_kind(token);
-        println!(
-            "{token:?}: {:?} {:?}",
-            kind.to_string(),
-            lexer.get_identifier(token)
-        );
-    }
+    println!("{module:#?}");
+
+    // for token in tokens {
+    //     let kind = lexer.get_token_kind(token);
+    //     println!(
+    //         "{token:?}: {:?} {:?}",
+    //         kind.to_string(),
+    //         lexer.get_identifier(token)
+    //     );
+    // }
 
     // let mut context = Context::new();
 
