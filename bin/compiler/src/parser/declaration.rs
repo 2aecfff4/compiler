@@ -1,5 +1,5 @@
 use crate::{
-    ast::{FunctionParam, ParamRef, Statement},
+    ast::{FunctionParam, ParamRef, Statement, Ty},
     lexer::{Keyword, Token, TokenKind},
     parser::Parser,
 };
@@ -33,12 +33,15 @@ where
         let params = self.parse_function_parameters();
         self.eat_expect(TokenKind::Arrow);
         let ret = self.parse_type();
+        let ty = Ty::Function {
+            ret: Box::new(ret),
+            params,
+        };
         let body = self.parse_statement();
 
         Statement::Function {
             name,
-            params,
-            ret: Box::new(ret),
+            ty: Box::new(ty),
             body: Box::new(body),
         }
     }

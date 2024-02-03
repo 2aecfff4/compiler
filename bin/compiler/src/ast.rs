@@ -78,14 +78,14 @@ pub enum Expression {
 }
 
 ///
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ParamRef {
     Val,
     Ref,
 }
 
 ///
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct FunctionParam {
     pub name: String,
     pub param_ref: ParamRef,
@@ -93,14 +93,14 @@ pub struct FunctionParam {
 }
 
 ///
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct StructField {
     pub name: String,
     pub ty: Box<Ty>,
 }
 
 ///
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Builtin {
     Void,
     Bool,
@@ -117,7 +117,7 @@ pub enum Builtin {
 }
 
 ///
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Ty {
     Builtin(Builtin),
     NamedType {
@@ -181,8 +181,7 @@ pub enum Statement {
     // Declarations
     Function {
         name: String,
-        params: Vec<FunctionParam>,
-        ret: Box<Ty>,
+        ty: Box<Ty>,
         body: Box<Statement>,
     },
     Struct {},

@@ -1,4 +1,5 @@
 mod ast;
+mod emitter;
 mod lexer;
 mod parser;
 
@@ -10,31 +11,26 @@ use ir::{
 use crate::{lexer::Lexer, parser::Parser};
 
 fn main() {
-    // 20
     let source = "
-        fn test(a: i32, b: i32) -> i32 {
-            for i in 0..10 {                
-                while i > b {
-                    {
-                        if x > b {
-                            a *= x;
-                        } else {
-                            b = x;
-                        }
-                        let var: u32 = 12;
-                    }
+        fn test(a: u32, b: u32) -> u32 {
+            for i in 0..10 {
+                if i > 5 {
+                    a += i * b;
+                } else {
+                    a += i * b * b;
                 }
+                let temp: u32 = a + 1;
             }
-
-            return 10 / a * b / (a + a) / 10 > 10;
+            return a;
         }
     ";
     let mut lexer = Lexer::new(source);
     let tokens = lexer.lex();
     let mut parser = Parser::new(&lexer, tokens);
     let module = parser.parse();
-
     println!("{module:#?}");
+    let mut emitter = emitter::Emitter::new();
+    emitter.emit(module);
 
     // for token in tokens {
     //     let kind = lexer.get_token_kind(token);

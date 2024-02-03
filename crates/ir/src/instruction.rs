@@ -16,6 +16,8 @@ pub(crate) enum BinaryOp {
     And,
     Or,
     Xor,
+    BitAnd,
+    BitOr,
 }
 
 ///
@@ -75,7 +77,7 @@ pub(crate) enum Instruction {
         /// Arguments passed to the function.
         arguments: Vec<Value>,
         /// Values where the function return values are going to be stored.
-        dst: Vec<Value>,
+        dst: Option<Value>,
     },
     Cast {
         cast_op: CastOp,
@@ -99,7 +101,7 @@ pub(crate) enum Instruction {
         ptr: Value,
     },
     Return {
-        values: Option<Vec<Value>>,
+        value: Option<Value>,
     },
     Select {
         dst: Value,
@@ -116,6 +118,7 @@ pub(crate) enum Instruction {
         ptr: Value,
         value: Value,
     },
+    Nop,
 }
 
 impl Instruction {

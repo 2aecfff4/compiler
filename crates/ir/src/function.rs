@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+
 use crate::{
-    constant::Constants,
+    constant::{Constant, Constants},
     handle_impl,
     label::Labels,
     ty::Type,
@@ -17,7 +19,7 @@ handle_impl! {
 ///
 pub(crate) struct FunctionDefinition {
     pub name: String,
-    pub return_types: Option<Vec<Type>>,
+    pub return_type: Option<Type>,
     /// Variables in a method definition.
     pub parameter_types: Vec<Type>,
 }
@@ -32,15 +34,12 @@ pub(crate) struct FunctionData {
     pub labels: Labels,
     parameters: Vec<Value>,
     pub constants: Constants,
+    pub value_to_constant: HashMap<Value, Constant>,
 }
 
 impl FunctionData {
     ///
-    pub fn new(
-        name: &str,
-        return_types: Option<&[Type]>,
-        parameter_types: &[Type],
-    ) -> Self {
+    pub fn new(name: &str, return_type: Option<Type>, parameter_types: &[Type]) -> Self {
         let mut values = Values::new();
         let labels = Labels::new();
         let parameters = parameter_types //
@@ -49,11 +48,10 @@ impl FunctionData {
             .collect();
         let constants = Constants::new();
 
-        let return_types = return_types.map(|types| types.to_vec());
         let parameter_types = parameter_types.to_vec();
         let definition = FunctionDefinition {
             name: name.to_string(),
-            return_types,
+            return_type,
             parameter_types,
         };
 
@@ -63,6 +61,7 @@ impl FunctionData {
             labels,
             parameters,
             constants,
+            value_to_constant: HashMap::new(),
         }
     }
 
@@ -122,12 +121,12 @@ impl Functions {
     pub fn create(
         &mut self,
         name: &str,
-        return_types: Option<&[Type]>,
+        return_type: Option<Type>,
         parameter_types: &[Type],
     ) -> Function {
         let index = self.functions.len();
         self.functions
-            .push(FunctionData::new(name, return_types, parameter_types));
+            .push(FunctionData::new(name, return_type, parameter_types));
 
         Function(index.try_into().unwrap())
     }

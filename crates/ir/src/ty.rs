@@ -20,6 +20,12 @@ pub(crate) struct TypeData {
     ty: TypeKind,
 }
 
+impl TypeData {
+    pub fn ty(&self) -> &TypeKind {
+        &self.ty
+    }
+}
+
 ///
 pub(crate) struct Types {
     types: Vec<TypeData>,
@@ -43,6 +49,10 @@ impl Types {
     pub fn types_match(&self, a: Type, b: Type) -> bool {
         let a = self.get(a);
         let b = self.get(b);
+
+        // #TODO
+        println!("{a:?} == {b:?}");
+
         a == b
     }
 

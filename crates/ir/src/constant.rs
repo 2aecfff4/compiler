@@ -1,8 +1,13 @@
-use crate::handle_impl;
+use crate::{handle_impl, ty::Type};
 
 handle_impl! {
     ///
     impl Constant
+}
+
+///
+pub enum ConstantValue {
+    Integer { ty: Type, value: u64 },
 }
 
 ///

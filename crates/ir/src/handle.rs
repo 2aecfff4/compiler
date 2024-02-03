@@ -5,8 +5,8 @@ macro_rules! handle_impl {
         impl $name: ident
     } => {
         $(#[$($attrs)*])*
-        #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-        pub struct $name(u32);
+        #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
+        pub struct $name(pub(crate) u32);
 
         impl $name {
             pub(crate) fn id(&self) -> usize {

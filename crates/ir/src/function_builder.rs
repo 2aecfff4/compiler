@@ -1,14 +1,11 @@
 use crate::{
-    function::Function,
+    constant::ConstantValue,
+    function::{Function, FunctionData, Functions},
     instruction::{BinaryOp, CastOp, Instruction, IntCompareOp, UnaryOp},
-    label::Label,
-    label::LabelData,
+    label::{Label, LabelData},
     ty::{Type, TypeKind, Types},
     value::{Value, Values},
 };
-
-//////////////////////////////////////////////////////////////////////////////////////////
-// LabelContext
 
 macro_rules! impl_arithmetic_binary {
     {$(
@@ -67,89 +64,67 @@ macro_rules! impl_int_compare {
 }
 
 ///
-pub struct LabelContext<'a> {
+pub struct FunctionBuilder<'a> {
     types: &'a mut Types,
-    values: &'a mut Values,
-    label: &'a mut LabelData,
+    function: &'a mut FunctionData,
+    current_label: Option<Label>,
 }
 
-impl<'a> LabelContext<'a> {
+impl<'a> FunctionBuilder<'a> {
     ///
-    pub(super) fn new(
-        types: &'a mut Types,
-        values: &'a mut Values,
-        label: &'a mut LabelData,
-    ) -> Self {
+    pub(crate) fn new(types: &'a mut Types, function: &'a mut FunctionData) -> Self {
         Self {
             types,
-            values,
-            label,
+            function,
+            current_label: None,
         }
     }
 
-    impl_arithmetic_binary! {
-        ///
-        impl add for BinaryOp::Add,
-        ///
-        impl sub for BinaryOp::Sub,
-        ///
-        impl mul for BinaryOp::Mul,
-        ///
-        impl mod_ for BinaryOp::Mod,
-        ///
-        impl div for BinaryOp::Div,
-        ///
-        impl shr for BinaryOp::Shr,
-        ///
-        impl shl for BinaryOp::Shl,
-        ///
-        impl sar for BinaryOp::Sar,
-        ///
-        impl and for BinaryOp::And,
-        ///
-        impl or for BinaryOp::Or,
-        ///
-        impl xor for BinaryOp::Xor
+    ///
+    pub fn create_type(&mut self, ty: TypeKind) -> Type {
+        self.types.create(ty)
     }
 
-    impl_arithmetic_unary! {
-        ///
-        impl neg for UnaryOp::Neg,
-        ///
-        impl not for UnaryOp::Not
+    ///
+    pub fn parameter(&self, index: usize) -> Value {
+        self.function.parameters()[index]
     }
 
-    impl_cast! {
-        ///
-        impl bit_cast for CastOp::BitCast,
-        ///
-        impl sign_extend for CastOp::SignExtend,
-        ///
-        impl truncate for CastOp::Truncate,
-        ///
-        impl zero_extend for CastOp::ZeroExtend
+    ///
+    pub fn create_label(&mut self, name: &str) -> Label {
+        self.function.labels_mut().create(name)
     }
 
-    impl_int_compare! {
-       ///
-       impl compare_eq for IntCompareOp::Equal,
-       ///
-       impl compare_ne for IntCompareOp::NotEqual,
+    ///
+    pub fn alloc_constant(&mut self, value: ConstantValue) -> Value {
+        let constant = self.function.constants.create();
+        let ty = match value {
+            ConstantValue::Integer { ty, .. } => ty,
+        };
+        let value = self.function.values_mut().alloc(ty);
+        self.function.value_to_constant.insert(value, constant);
 
-       ///
-       impl compare_gt for IntCompareOp::GreaterThan,
-       ///
-       impl compare_gte for IntCompareOp::GreaterThanOrEqual,
+        value
+    }
 
-       ///
-       impl compare_lt for IntCompareOp::LessThan,
-       ///
-       impl compare_lte for IntCompareOp::LessThanOrEqual
+    ///
+    pub fn set_insert_point(&mut self, label: Label) {
+        self.current_label = Some(label);
+    }
+
+    fn label(&mut self) -> &mut LabelData {
+        self.function
+            .labels_mut()
+            .get_mut(self.current_label.unwrap())
+    }
+
+    fn values(&mut self) -> &mut Values {
+        self.function.values_mut()
     }
 
     ///
     fn insert_instruction(&mut self, instruction: Instruction) {
-        self.label.instructions.push(instruction);
+        self.label().instructions.push(instruction);
     }
 
     ///
@@ -157,7 +132,7 @@ impl<'a> LabelContext<'a> {
     where
         Func: FnOnce(Value) -> Instruction,
     {
-        let value = self.values.alloc(ty);
+        let value = self.values().alloc(ty);
         let instruction = func(value);
         self.insert_instruction(instruction);
 
@@ -165,12 +140,13 @@ impl<'a> LabelContext<'a> {
     }
 
     fn validate_values_types(
-        &self,
+        &mut self,
         a: Value, //
         b: Value,
     ) -> Type {
-        let a_type = self.values.get(a).ty();
-        let b_type = self.values.get(b).ty();
+        let a_type = self.values().get(a).ty();
+        let b_type = self.values().get(b).ty();
+
         assert!(self.types.types_match(a_type, b_type));
         a_type
     }
@@ -194,7 +170,7 @@ impl<'a> LabelContext<'a> {
 
     ///
     fn arithmetic_unary(&mut self, op: UnaryOp, value: Value) -> Value {
-        let ty = self.values.get(value).ty();
+        let ty = self.values().get(value).ty();
 
         self.with_output(ty, |dst| Instruction::ArithmeticUnary { dst, op, value })
     }
@@ -243,8 +219,8 @@ impl<'a> LabelContext<'a> {
         ptr: Value, //
         index: Value,
     ) -> Value {
-        let ptr_type = self.values.get(ptr).ty();
-        let index_type = self.values.get(index).ty();
+        let ptr_type = self.values().get(ptr).ty();
+        let index_type = self.values().get(index).ty();
         assert!(self.types.is_pointer(ptr_type));
 
         let ty = self.types.strip_pointer(ptr_type).unwrap();
@@ -288,18 +264,18 @@ impl<'a> LabelContext<'a> {
 
     ///
     pub fn load(&mut self, ptr: Value) -> Value {
-        let ptr_type = self.values.get(ptr).ty();
+        let ptr_type = self.values().get(ptr).ty();
         assert!(self.types.is_pointer(ptr_type));
 
-        let ty = self.types.strip_pointer(self.values.get(ptr).ty()).unwrap();
+        let ty_handle = self.values().get(ptr).ty();
+        let ty = self.types.strip_pointer(ty_handle).unwrap();
 
         self.with_output(ty, |dst| Instruction::Load { dst, ptr })
     }
 
     ///
-    pub fn ret(&mut self, values: Option<&[Value]>) {
-        let values = values.map(|values| values.to_vec());
-        self.insert_instruction(Instruction::Return { values });
+    pub fn ret(&mut self, value: Option<Value>) {
+        self.insert_instruction(Instruction::Return { value });
     }
 
     ///
@@ -317,15 +293,79 @@ impl<'a> LabelContext<'a> {
 
     ///
     pub fn stack_alloc(&mut self, ty: Type, size: usize) -> Value {
-        let ty = self.types.add_pointer(ty);
-        self.with_output(ty, |dst| Instruction::StackAlloc { dst, ty, size })
+        let ret_ty = self.types.add_pointer(ty);
+        self.with_output(ret_ty, |dst| Instruction::StackAlloc { dst, ty, size })
     }
 
     ///
     pub fn store(&mut self, ptr: Value, value: Value) {
-        let ptr_type = self.values.get(ptr).ty();
+        let ptr_type = self.values().get(ptr).ty();
         assert!(self.types.is_pointer(ptr_type));
 
         self.insert_instruction(Instruction::Store { ptr, value });
+    }
+
+    impl_arithmetic_binary! {
+        ///
+        impl add for BinaryOp::Add,
+        ///
+        impl sub for BinaryOp::Sub,
+        ///
+        impl mul for BinaryOp::Mul,
+        ///
+        impl mod_ for BinaryOp::Mod,
+        ///
+        impl div for BinaryOp::Div,
+        ///
+        impl shr for BinaryOp::Shr,
+        ///
+        impl shl for BinaryOp::Shl,
+        ///
+        impl sar for BinaryOp::Sar,
+        ///
+        impl and for BinaryOp::And,
+        ///
+        impl or for BinaryOp::Or,
+        ///
+        impl xor for BinaryOp::Xor,
+        ///
+        impl bit_and for BinaryOp::BitAnd,
+        ///
+        impl bit_or for BinaryOp::BitOr
+    }
+
+    impl_arithmetic_unary! {
+        ///
+        impl neg for UnaryOp::Neg,
+        ///
+        impl not for UnaryOp::Not
+    }
+
+    impl_cast! {
+        ///
+        impl bit_cast for CastOp::BitCast,
+        ///
+        impl sign_extend for CastOp::SignExtend,
+        ///
+        impl truncate for CastOp::Truncate,
+        ///
+        impl zero_extend for CastOp::ZeroExtend
+    }
+
+    impl_int_compare! {
+       ///
+       impl compare_eq for IntCompareOp::Equal,
+       ///
+       impl compare_ne for IntCompareOp::NotEqual,
+
+       ///
+       impl compare_gt for IntCompareOp::GreaterThan,
+       ///
+       impl compare_gte for IntCompareOp::GreaterThanOrEqual,
+
+       ///
+       impl compare_lt for IntCompareOp::LessThan,
+       ///
+       impl compare_lte for IntCompareOp::LessThanOrEqual
     }
 }
