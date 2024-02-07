@@ -41,6 +41,24 @@ impl Context {
         FunctionBuilder::new(&mut self.types, self.functions.get_mut(function))
     }
 
+    pub fn validate(&mut self) {
+        // Ensure each label has only one branch, and it's the last instruction.
+        for (_, function) in self.functions.iter() {
+            for (_, label) in function.labels.iter() {
+                let count = label
+                    .instructions
+                    .iter()
+                    .filter(|instr| instr.targets().is_some())
+                    .count();
+                assert_eq!(count, 1);
+
+                let last_instruction = label.instructions.last().unwrap();
+                assert!(last_instruction.targets().is_some());
+            }
+
+        }
+    }
+
     pub fn dump_ir(&self, path: &std::path::Path) {
         use std::io::prelude::*;
         let mut file = std::fs::File::create(path).unwrap();

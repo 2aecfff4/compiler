@@ -191,6 +191,7 @@ impl Emitter {
         }
         self.variables.exit_scope();
 
+        self.context.validate();
         self.context.dump_ir(std::path::Path::new("test.ir"));
     }
 
