@@ -1,3 +1,4 @@
+mod cfg;
 pub mod constant;
 pub mod context;
 pub mod dump_ir;

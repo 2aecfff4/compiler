@@ -50,11 +50,11 @@ impl Labels {
     }
 
     ///
-    pub fn iter(&self) -> impl Iterator<Item = (u32, &LabelData)> {
+    pub fn iter(&self) -> impl Iterator<Item = (Label, &LabelData)> {
         self.labels
             .iter()
             .enumerate()
-            .map(|(id, label)| (id as u32, label))
+            .map(|(id, label)| (Label(id as u32), label))
     }
 
     /// Retrieves the target labels associated with the last instruction of a specific label.
@@ -90,6 +90,8 @@ impl Labels {
             }
         }
 
-        //
+    /// #TODO: This probably should not be regenerated every single time.
+    pub fn cfg(&self) -> crate::cfg::Cfg {
+        crate::cfg::Cfg::new(self)
     }
 }
