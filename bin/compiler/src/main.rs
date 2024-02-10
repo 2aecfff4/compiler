@@ -13,14 +13,18 @@ use crate::{lexer::Lexer, parser::Parser};
 fn main() {
     let source = "
         fn test(a: u32, b: u32) -> u32 {
-            for i in 0..10 {
-                if i > 5 {
-                    a += i * b;
-                } else {
-                    a += i * b * b;
+            let temp: u32 = a / 2;
+
+            if temp > 10 {
+                for i in 0..10 {
+                    if i > 5 {
+                        a += i * b;
+                    } else {
+                        a += i * b * b;
+                    }
                 }
-                let temp: u32 = a + 1;
             }
+
             return a;
         }
     ";
