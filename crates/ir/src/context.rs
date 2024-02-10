@@ -67,6 +67,20 @@ impl Context {
     pub(crate) fn types(&self) -> &Types {
         &self.types
     }
+
+    pub fn optimize(&mut self) {
+        use crate::passes;
+        let mut passes: [&mut dyn passes::Pass; 3] = [
+            &mut passes::dead_code_elimination::DeadCodeEliminationPass,
+            &mut passes::simplify_cfg::SimplifyCfgPass,
+            &mut passes::remove_noops::RemoveNoopsPass,
+        ];
+
+        for (_, function) in self.functions.iter_mut() {
+            let mut ctx = crate::passes::FunctionContext::new(&self.types, function);
+            for pass in passes.iter_mut() {
+                pass.run(&mut ctx);
+            }
         }
     }
 
@@ -76,7 +90,6 @@ impl Context {
 
         for (id, function) in self.functions.iter() {
             let formatter = IrFormatter::new(&self.types, function);
-            let cfg = function.labels.cfg();
 
             use itertools::*;
             let definition = function.definition();
@@ -99,7 +112,7 @@ impl Context {
             writeln!(file, "fn @{function_name}({args}) -> {return_type} {{").unwrap();
 
             for (label_id, label) in function.labels().iter() {
-                writeln!(file, "    block_{}: {{", label_id).unwrap();
+                writeln!(file, "    {}: {{", label_id).unwrap();
 
                 for instruction in label.instructions.iter() {
                     write!(file, "        ").unwrap();
