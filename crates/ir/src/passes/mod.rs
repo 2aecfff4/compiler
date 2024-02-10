@@ -2,6 +2,7 @@
 //! https://www.clear.rice.edu/comp512/Lectures/Papers/1971-allen-catalog.pdf
 
 pub mod dead_code_elimination;
+pub mod remove_noops;
 use crate::{context::Context, function::FunctionData, ty::Types};
 
 ///
