@@ -45,4 +45,12 @@ impl Values {
         let index = handle.id();
         self.values.get_mut(index).unwrap()
     }
+
+    ///
+    pub fn iter(&self) -> impl Iterator<Item = (Value, &ValueData)> {
+        self.values
+            .iter()
+            .enumerate()
+            .map(|(id, label)| (Value(id as u32), label))
+    }
 }
