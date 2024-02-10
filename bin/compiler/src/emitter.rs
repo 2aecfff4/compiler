@@ -190,8 +190,8 @@ impl Emitter {
             }
         }
         self.variables.exit_scope();
-
         self.context.validate();
+        self.context.optimize();
         self.context.dump_ir(std::path::Path::new("test.ir"));
     }
 
@@ -264,8 +264,6 @@ impl Emitter {
         builder: &mut FunctionBuilder<'_>,
         body: &Statement,
     ) {
-        variables.enter_scope();
-
         match body {
             Statement::Block { nodes } => {
                 variables.enter_scope();
@@ -345,8 +343,6 @@ impl Emitter {
             }
             _ => panic!(),
         }
-
-        variables.exit_scope();
     }
 
     ///
@@ -360,11 +356,15 @@ impl Emitter {
     ) {
         variables.enter_scope();
 
+        let if_entry_label = builder.create_label("if_entry");
         let on_true_label = builder.create_label("on_true");
         let on_false_label = builder.create_label("on_false");
         let end_label = builder.create_label("end");
 
+        builder.branch(if_entry_label);
+
         {
+            builder.set_insert_point(if_entry_label);
             let condition =
                 Self::emit_expression(variables, types, builder, condition).unwrap();
             let condition_value = condition.extract(builder);
@@ -377,9 +377,11 @@ impl Emitter {
             builder.branch(end_label);
         }
 
-        if let Some(on_false) = on_false {
+        {
             builder.set_insert_point(on_false_label);
-            Self::emit_block(variables, types, builder, on_false);
+            if let Some(on_false) = on_false {
+                Self::emit_block(variables, types, builder, on_false);
+            }
             builder.branch(end_label);
         }
 
