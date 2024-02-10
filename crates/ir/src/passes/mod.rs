@@ -1,6 +1,7 @@
 //! A catalogue of optimizing transformations - Frances E. Allen, John Cocke
 //! https://www.clear.rice.edu/comp512/Lectures/Papers/1971-allen-catalog.pdf
 
+pub mod dead_code_elimination;
 use crate::{context::Context, function::FunctionData, ty::Types};
 
 ///
