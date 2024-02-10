@@ -52,7 +52,7 @@ where
             TokenKind::SlashEqual => make_compound_assign(dst, AssignOp::Div),
             TokenKind::StarEqual => make_compound_assign(dst, AssignOp::Mul),
             TokenKind::TildeEqual => make_compound_assign(dst, AssignOp::Not),
-            _ => panic!("unexpected token"),
+            _ => panic!("{dst:#?} unexpected token"),
         }
     }
 }
