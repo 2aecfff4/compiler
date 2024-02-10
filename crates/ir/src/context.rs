@@ -55,6 +55,13 @@ impl Context {
                 let last_instruction = label.instructions.last().unwrap();
                 assert!(last_instruction.targets().is_some());
             }
+        }
+    }
+
+    ///
+    pub(crate) fn functions_mut(&mut self) -> &mut Functions {
+        &mut self.functions
+    }
 
     ///
     pub(crate) fn types(&self) -> &Types {
