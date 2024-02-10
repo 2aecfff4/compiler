@@ -3,6 +3,7 @@
 
 pub mod dead_code_elimination;
 pub mod remove_noops;
+pub mod simplify_cfg;
 use crate::{context::Context, function::FunctionData, ty::Types};
 
 ///
