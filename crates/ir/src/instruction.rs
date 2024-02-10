@@ -134,4 +134,59 @@ impl Instruction {
             _ => None,
         }
     }
+
+    ///
+    pub fn creates(&self) -> Option<Value> {
+        match self {
+            Instruction::ArithmeticBinary { dst, .. } => Some(*dst),
+            Instruction::ArithmeticUnary { dst, .. } => Some(*dst),
+            Instruction::Branch { .. } => None,
+            Instruction::BranchConditional { .. } => None,
+            Instruction::Call { dst, .. } => *dst,
+            Instruction::Cast { dst, .. } => Some(*dst),
+            Instruction::GetElementPtr { dst, .. } => Some(*dst),
+            Instruction::IntCompare { dst, .. } => Some(*dst),
+            Instruction::Load { dst, .. } => Some(*dst),
+            Instruction::Return { .. } => None,
+            Instruction::Select { dst, .. } => Some(*dst),
+            Instruction::StackAlloc { dst, .. } => Some(*dst),
+            Instruction::Store { .. } => None,
+            Instruction::Nop => None,
+        }
+    }
+
+    ///
+    pub fn reads(&self) -> Option<SmallVec<[Value; 4]>> {
+        match self {
+            Instruction::ArithmeticBinary { lhs, rhs, .. } => Some(smallvec![*lhs, *rhs]),
+            Instruction::ArithmeticUnary { value, .. } => Some(smallvec![*value]),
+            Instruction::Branch { .. } => None,
+            Instruction::BranchConditional { condition, .. } => {
+                Some(smallvec![*condition])
+            }
+            Instruction::Call { arguments, .. } => {
+                if arguments.is_empty() {
+                    None
+                } else {
+                    Some(arguments.clone().into())
+                }
+            }
+            Instruction::Cast { value, .. } => Some(smallvec![*value]),
+            Instruction::GetElementPtr { ptr, index, .. } => {
+                Some(smallvec![*ptr, *index])
+            }
+            Instruction::IntCompare { lhs, rhs, .. } => Some(smallvec![*lhs, *rhs]),
+            Instruction::Load { ptr, .. } => Some(smallvec![*ptr]),
+            Instruction::Return { value } => (*value).map(|v| smallvec![v]),
+            Instruction::Select {
+                condition,
+                on_true,
+                on_false,
+                ..
+            } => Some(smallvec![*condition, *on_true, *on_false]),
+            Instruction::StackAlloc { .. } => None,
+            Instruction::Store { ptr, value } => Some(smallvec![*ptr, *value]),
+            Instruction::Nop => None,
+        }
+    }
 }

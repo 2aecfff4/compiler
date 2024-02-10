@@ -7,5 +7,7 @@ pub mod function_builder;
 pub mod handle;
 pub mod instruction;
 pub mod label;
+mod location;
+mod pointer_analysis;
 pub mod ty;
 pub mod value;

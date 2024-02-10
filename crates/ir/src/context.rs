@@ -56,6 +56,10 @@ impl Context {
                 assert!(last_instruction.targets().is_some());
             }
 
+    ///
+    pub(crate) fn types(&self) -> &Types {
+        &self.types
+    }
         }
     }
 
