@@ -122,7 +122,23 @@ impl PointerAnalysis {
         let mut escaped_pointers = HashSet::new();
         let outgoing_edges = function.variable_users();
 
-        // Catch pointers that are escaping
+        // Perform escape analysis to identify pointers that escape.
+        //
+        // Example:
+        // Normal order:
+        // 0. let v2: *u32 = stack_alloc.u32 1
+        // 1. let v3: *u32 = stack_alloc.u32 1
+        // 2. let v5: u32 = load.*u32 v2
+        // 3. let v6: u32 = div.u32 v5, v4
+        //
+        // Reversed order:
+        // 0. let v6: u32 = div.u32 v5, v4      // outgoing: {}
+        // 1. let v5: u32 = load.*u32 v2        // outgoing: { v6 }
+        // 2. let v3: *u32 = stack_alloc.u32 1  // outgoing: {}
+        // 3. let v2: *u32 = stack_alloc.u32 1  // outgoing: { v5 }
+        //
+        // Processing in reverse order ensures all output values of instructions using a `pointer`
+        // are processed before the pointer itself.
         for pointer in topologically_sorted_values.iter().rev() {
             if !pointers.contains(pointer) {
                 continue;
