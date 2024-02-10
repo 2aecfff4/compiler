@@ -1,6 +1,6 @@
 use crate::{handle_impl, instruction::Instruction};
-use smallvec::SmallVec;
-use std::collections::{HashSet, VecDeque};
+use smallvec::{smallvec, SmallVec};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 handle_impl! {
     ///
@@ -17,44 +17,54 @@ pub(crate) struct LabelData {
 
 ///
 pub(crate) struct Labels {
-    labels: Vec<LabelData>,
+    labels: HashMap<Label, LabelData>,
+    current_id: u32,
 }
 
 impl Labels {
     ///
     pub fn new() -> Self {
-        Self { labels: Vec::new() }
+        Self {
+            labels: HashMap::new(),
+            current_id: 0,
+        }
     }
 
     ///
     pub fn create(&mut self, name: &str) -> Label {
-        let index = self.labels.len();
-        self.labels.push(LabelData {
-            name: name.to_string(),
-            instructions: Vec::new(),
-        });
+        let id = self.current_id;
+        self.current_id += 1;
 
-        Label(index.try_into().unwrap())
+        self.labels.insert(
+            Label(id),
+            LabelData {
+                name: name.to_string(),
+                instructions: Vec::new(),
+            },
+        );
+
+        Label(id)
     }
 
     ///
-    pub fn get(&self, handle: Label) -> &LabelData {
-        let index = handle.id();
-        self.labels.get(index).unwrap()
+    pub fn get(&self, label: Label) -> &LabelData {
+        self.labels.get(&label).unwrap()
     }
 
     ///
-    pub fn get_mut(&mut self, handle: Label) -> &mut LabelData {
-        let index = handle.id();
-        self.labels.get_mut(index).unwrap()
+    pub fn get_mut(&mut self, label: Label) -> &mut LabelData {
+        self.labels.get_mut(&label).unwrap()
     }
 
     ///
-    pub fn iter(&self) -> impl Iterator<Item = (Label, &LabelData)> {
-        self.labels
-            .iter()
-            .enumerate()
-            .map(|(id, label)| (Label(id as u32), label))
+    pub fn remove(&mut self, label: Label) -> Vec<Instruction> {
+        let data = self.labels.remove(&label).unwrap();
+        data.instructions
+    }
+
+    ///
+    pub fn iter(&self) -> impl Iterator<Item = (&Label, &LabelData)> {
+        self.labels.iter()
     }
 
     /// Retrieves the target labels associated with the last instruction of a specific label.
@@ -68,6 +78,8 @@ impl Labels {
             .unwrap()
             .targets()
             .unwrap()
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&Label, &mut LabelData)> {
+        self.labels.iter_mut()
     }
 
     ///
@@ -88,7 +100,22 @@ impl Labels {
             for target in self.targets(label).iter() {
                 queue.push_back(*target);
             }
+    pub fn labels(&self) -> impl Iterator<Item = Label> {
+        let count = self.labels.len() as u32;
+        (0..count).map(Label)
+    }
+
+    /// Retrieves the target labels associated with the last instruction of a specific label.
+    /// This method assumes that the label exists in the instruction map.
+    ///
+    /// Returns a [`SmallVec`] containing the target labels or panics if the label or targets are not present.
+    pub(crate) fn targets(&self, label: Label) -> SmallVec<[Label; 8]> {
+        if let Some(last) = self.get(label).instructions.last() {
+            last.targets().unwrap_or_else(|| smallvec![])
+        } else {
+            smallvec![]
         }
+    }
 
     /// #TODO: This probably should not be regenerated every single time.
     pub fn cfg(&self) -> crate::cfg::Cfg {
