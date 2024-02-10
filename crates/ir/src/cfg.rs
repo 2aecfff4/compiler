@@ -2,7 +2,10 @@ use crate::{
     instruction::Instruction,
     label::{Label, Labels},
 };
-use petgraph::graphmap::DiGraphMap;
+use petgraph::{
+    graphmap::{DiGraphMap, EdgesDirected},
+    Directed,
+};
 
 ///
 #[derive(Debug, Clone, Copy)]
@@ -23,11 +26,11 @@ impl Cfg {
         let mut graph = DiGraphMap::new();
 
         for (label, _) in labels.iter() {
-            graph.add_node(label);
+            graph.add_node(*label);
         }
 
         for (label, data) in labels.iter() {
-            for target in labels.targets(label) {
+            for target in labels.targets(*label) {
                 let edge = match data.instructions.last().unwrap() {
                     Instruction::Branch { .. } => EdgeType::Jump,
                     Instruction::BranchConditional { on_true, .. } => {
@@ -39,7 +42,7 @@ impl Cfg {
                     }
                     _ => panic!(),
                 };
-                graph.add_edge(label, target, edge);
+                graph.add_edge(*label, target, edge);
             }
         }
 
@@ -55,13 +58,13 @@ impl Cfg {
     }
 
     ///
-    pub fn incoming(&self, label: Label) -> impl Iterator + '_ {
+    pub fn incoming(&self, label: Label) -> EdgesDirected<Label, EdgeType, Directed> {
         self.graph
             .edges_directed(label, petgraph::Direction::Incoming)
     }
 
     ///
-    pub fn outgoing(&self, label: Label) -> impl Iterator + '_ {
+    pub fn outgoing(&self, label: Label) -> EdgesDirected<Label, EdgeType, Directed> {
         self.graph
             .edges_directed(label, petgraph::Direction::Outgoing)
     }
