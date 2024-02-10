@@ -191,8 +191,10 @@ impl Emitter {
         }
         self.variables.exit_scope();
         self.context.validate();
-        self.context.optimize();
-        self.context.dump_ir(std::path::Path::new("test.ir"));
+        // self.context.optimize();
+        self.context
+            .dump_ir(std::path::Path::new("test2.ir"))
+            .unwrap();
     }
 
     ///

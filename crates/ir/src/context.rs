@@ -84,16 +84,39 @@ impl Context {
         }
     }
 
-    pub fn dump_ir(&self, path: &std::path::Path) {
+    pub fn dump_ir(&self, path: &std::path::Path) -> std::io::Result<()> {
+        use itertools::*;
         use std::io::prelude::*;
-        let mut file = std::fs::File::create(path).unwrap();
+
+        let mut file = std::fs::File::create(path)?;
+
+        writeln!(file, "digraph {{")?;
+        writeln!(file, "graph [fontname = \"helvetica\"];")?;
+        writeln!(file, "edge [fontname = \"helvetica\", fontsize=10];")?;
+        writeln!(
+            file,
+            "node [shape=rectangle, fontname=\"helvetica\", fontsize=10];\n"
+        )?;
 
         for (id, function) in self.functions.iter() {
             let formatter = IrFormatter::new(&self.types, function);
+            let cfg = function.labels().cfg();
 
-            use itertools::*;
+            cfg.bfs(|label| {
+                write!(
+                    file,
+                    "{label} [label = < <table border=\"0\" cellpadding=\"0\"> <tr><td border=\"1\" align=\"center\">{label}</td></tr>"
+                )
+                .unwrap();
+                let data = function.labels().get(label);
+                for instruction in data.instructions.iter() {
+                    let instr = format_instruction(&formatter, instruction);
+                    write!(file, "<tr><td align=\"left\">{instr}</td></tr>").unwrap();
+                }
+                writeln!(file, "</table> > ]").unwrap();
+            });
+
             let definition = function.definition();
-
             let return_type = if let Some(ty) = definition.return_type {
                 formatter.ty(ty)
             } else {
@@ -109,21 +132,24 @@ impl Context {
                 .join(", ");
 
             let function_name = &function.definition().name;
-            writeln!(file, "fn @{function_name}({args}) -> {return_type} {{").unwrap();
 
-            for (label_id, label) in function.labels().iter() {
-                writeln!(file, "    {}: {{", label_id).unwrap();
+            writeln!(file, "subgraph function_{id}_graph {{")?;
+            writeln!(
+                file,
+                "label = \"fn @{function_name}({args}) -> {return_type}\";"
+            )?;
 
-                for instruction in label.instructions.iter() {
-                    write!(file, "        ").unwrap();
-                    format_instruction(&mut file, &formatter, instruction).unwrap();
+            cfg.bfs(|label| {
+                for (from, to, edge) in cfg.outgoing(label) {
+                    writeln!(file, "{from} -> {to} [ label=\"{edge:?}\" ]").unwrap();
                 }
+            });
 
-                writeln!(file, "    }}").unwrap();
-            }
-
-            writeln!(file, "}}\n").unwrap();
+            writeln!(file, "}}")?;
         }
+
+        writeln!(file, "}}")?;
+        Ok(())
     }
 }
 

@@ -156,15 +156,13 @@ impl<'a> IrFormatter<'a> {
     }
 }
 
-pub(crate) fn format_instruction<W: Write>(
-    w: &mut W,
+pub(crate) fn format_instruction(
     formatter: &IrFormatter,
     instruction: &Instruction,
-) -> io::Result<()> {
+) -> String {
     match instruction {
         Instruction::ArithmeticBinary { dst, lhs, op, rhs } => {
-            writeln!(
-                w,
+            format!(
                 "let {}: {} = {}.{} {}, {}",
                 dst,
                 formatter.value_type(*dst),
@@ -175,8 +173,7 @@ pub(crate) fn format_instruction<W: Write>(
             )
         }
         Instruction::ArithmeticUnary { dst, op, value } => {
-            writeln!(
-                w,
+            format!(
                 "let {}: {} = {}.{} {}",
                 dst,
                 formatter.value_type(*dst),
@@ -185,12 +182,12 @@ pub(crate) fn format_instruction<W: Write>(
                 value
             )
         }
-        Instruction::Branch { target } => writeln!(w, "branch {target}"),
+        Instruction::Branch { target } => format!("branch {target}"),
         Instruction::BranchConditional {
             condition,
             on_true,
             on_false,
-        } => writeln!(w, "branch_if {condition} {on_true}, {on_false}"),
+        } => format!("branch_if {condition} {on_true}, {on_false}"),
         Instruction::Call {
             function,
             arguments,
@@ -209,8 +206,7 @@ pub(crate) fn format_instruction<W: Write>(
             lhs,
             rhs,
         } => {
-            writeln!(
-                w,
+            format!(
                 "let {}: {} = {}.{} {}, {}",
                 dst,
                 formatter.value_type(*dst),
@@ -221,8 +217,7 @@ pub(crate) fn format_instruction<W: Write>(
             )
         }
         Instruction::Load { dst, ptr } => {
-            writeln!(
-                w,
+            format!(
                 "let {}: {} = load.{} {}",
                 dst,
                 formatter.value_type(*dst),
@@ -232,9 +227,9 @@ pub(crate) fn format_instruction<W: Write>(
         }
         Instruction::Return { value } => {
             if let Some(value) = value {
-                writeln!(w, "ret {}", value)
+                format!("ret {}", value)
             } else {
-                writeln!(w, "ret")
+                format!("ret")
             }
         }
         Instruction::Select {
@@ -243,8 +238,7 @@ pub(crate) fn format_instruction<W: Write>(
             on_true,
             on_false,
         } => {
-            writeln!(
-                w,
+            format!(
                 "let {}: {} = select {}, {}, {}",
                 dst,
                 formatter.value_type(*dst),
@@ -254,8 +248,7 @@ pub(crate) fn format_instruction<W: Write>(
             )
         }
         Instruction::StackAlloc { dst, ty, size } => {
-            writeln!(
-                w,
+            format!(
                 "let {}: {} = stack_alloc.{} {}",
                 dst,
                 formatter.value_type(*dst),
@@ -264,8 +257,8 @@ pub(crate) fn format_instruction<W: Write>(
             )
         }
         Instruction::Store { ptr, value } => {
-            writeln!(w, "store.{} {}, {}", formatter.value_type(*ptr), ptr, value)
+            format!("store.{} {}, {}", formatter.value_type(*ptr), ptr, value)
         }
-        Instruction::Nop => writeln!(w, "nop"),
+        Instruction::Nop => format!("nop"),
     }
 }
