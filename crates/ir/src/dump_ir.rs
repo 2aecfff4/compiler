@@ -1,4 +1,5 @@
 use crate::{
+    constant::ConstantValue,
     context::Context,
     function::FunctionData,
     instruction::{BinaryOp, CastOp, Instruction, IntCompareOp, UnaryOp},
@@ -154,6 +155,19 @@ impl<'a> IrFormatter<'a> {
             _ => panic!(),
         }
     }
+
+    pub fn value(&self, value: Value) -> String {
+        if let Some(constant) = self.function_data.value_to_constant.get(&value) {
+            let data = self.function_data.constants().get(*constant);
+            match data.value {
+                ConstantValue::Integer { ty, value } => {
+                    format!("{value}_{}", self.ty(ty))
+                }
+            }
+        } else {
+            format!("{value}")
+        }
+    }
 }
 
 pub(crate) fn format_instruction(
@@ -168,8 +182,8 @@ pub(crate) fn format_instruction(
                 formatter.value_type(*dst),
                 op,
                 formatter.value_type(*lhs),
-                lhs,
-                rhs
+                formatter.value(*lhs),
+                formatter.value(*rhs)
             )
         }
         Instruction::ArithmeticUnary { dst, op, value } => {

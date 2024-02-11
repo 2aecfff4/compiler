@@ -11,7 +11,9 @@ pub enum ConstantValue {
 }
 
 ///
-pub(crate) struct ConstantData {}
+pub(crate) struct ConstantData {
+    pub value: ConstantValue,
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Labels
@@ -30,9 +32,9 @@ impl Constants {
     }
 
     ///
-    pub fn create(&mut self) -> Constant {
+    pub fn create(&mut self, value: ConstantValue) -> Constant {
         let index = self.constants.len();
-        self.constants.push(ConstantData {});
+        self.constants.push(ConstantData { value });
 
         Constant(index.try_into().unwrap())
     }
