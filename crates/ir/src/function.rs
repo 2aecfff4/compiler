@@ -108,8 +108,18 @@ impl FunctionData {
         &self.labels().get(location.label).instructions[location.instruction as usize]
     }
 
+    ///
     pub fn last_instruction(&self, label: Label) -> &Instruction {
         self.labels().get(label).instructions.last().unwrap()
+    }
+
+    ///
+    pub fn last_instruction_mut(&mut self, label: Label) -> &mut Instruction {
+        self.labels_mut()
+            .get_mut(label)
+            .instructions
+            .last_mut()
+            .unwrap()
     }
 
     ///

@@ -47,6 +47,11 @@ impl Labels {
     }
 
     ///
+    pub fn entry(&self) -> Label {
+        Label(0)
+    }
+
+    ///
     pub fn get(&self, label: Label) -> &LabelData {
         self.labels.get(&label).unwrap()
     }
@@ -58,6 +63,8 @@ impl Labels {
 
     ///
     pub fn remove(&mut self, label: Label) -> Vec<Instruction> {
+        assert_ne!(label, self.entry());
+
         let data = self.labels.remove(&label).unwrap();
         data.instructions
     }
@@ -73,9 +80,8 @@ impl Labels {
     }
 
     ///
-    pub fn labels(&self) -> impl Iterator<Item = Label> {
-        let count = self.labels.len() as u32;
-        (0..count).map(Label)
+    pub fn labels(&self) -> impl Iterator<Item = &Label> {
+        self.labels.keys()
     }
 
     /// Retrieves the target labels associated with the last instruction of a specific label.
