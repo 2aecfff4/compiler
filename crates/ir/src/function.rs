@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::{
-    constant::{Constant, Constants},
+    constant::{Constant, ConstantValue, Constants},
     handle_impl,
     instruction::Instruction,
     label::{Label, Labels},
@@ -66,6 +66,16 @@ impl FunctionData {
             constants,
             value_to_constant: HashMap::new(),
         }
+    }
+
+    ///
+    pub fn alloc_constant(&mut self, value: ConstantValue) -> Value {
+        let ty = value.ty();
+        let constant = self.constants.create(value);
+        let value = self.values_mut().alloc(ty);
+        self.value_to_constant.insert(value, constant);
+
+        value
     }
 
     ///
