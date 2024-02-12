@@ -97,9 +97,7 @@ impl<'a> FunctionBuilder<'a> {
 
     ///
     pub fn alloc_constant(&mut self, value: ConstantValue) -> Value {
-        let ty = match value {
-            ConstantValue::Integer { ty, .. } => ty,
-        };
+        let ty = value.ty();
         let constant = self.function.constants.create(value);
         let value = self.function.values_mut().alloc(ty);
         self.function.value_to_constant.insert(value, constant);

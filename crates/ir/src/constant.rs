@@ -12,6 +12,21 @@ pub enum ConstantValue {
     Float { ty: Type, value: f64 },
 }
 
+impl ConstantValue {
+    pub fn ty(&self) -> Type {
+        match self {
+            ConstantValue::Integer { ty, value } => *ty,
+            ConstantValue::Float { ty, value } => *ty,
+        }
+    }
+
+    ///
+    pub fn integer(&self) -> Option<u64> {
+        match self {
+            ConstantValue::Integer { value, .. } => Some(*value),
+            _ => None,
+        }
+    }
 }
 
 ///
