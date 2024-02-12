@@ -6,8 +6,12 @@ handle_impl! {
 }
 
 ///
+#[derive(Debug, Clone, Copy)]
 pub enum ConstantValue {
     Integer { ty: Type, value: u64 },
+    Float { ty: Type, value: f64 },
+}
+
 }
 
 ///
