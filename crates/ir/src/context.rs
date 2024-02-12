@@ -70,9 +70,10 @@ impl Context {
 
     pub fn optimize(&mut self) {
         use crate::passes;
-        let mut passes: [&mut dyn passes::Pass; 3] = [
-            &mut passes::dead_code_elimination::DeadCodeEliminationPass,
+        let mut passes: [&mut dyn passes::Pass; 4] = [
+            &mut passes::constant_folding::ConstantFoldingPass,
             &mut passes::simplify_cfg::SimplifyCfgPass,
+            &mut passes::dead_code_elimination::DeadCodeEliminationPass,
             &mut passes::remove_noops::RemoveNoopsPass,
         ];
 
