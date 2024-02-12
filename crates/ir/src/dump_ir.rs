@@ -94,14 +94,14 @@ impl<'a> IrFormatter<'a> {
         let value_data = self.function_data.values().get(value);
         let ty = value_data.ty();
         let mut type_data = self.types.get(ty);
-        let mut type_kind = type_data.ty();
+        let mut type_kind = type_data.type_kind();
 
         let mut indirection = 0;
 
         while let crate::ty::TypeKind::Pointer { ty } = type_kind {
             indirection += 1;
             type_data = self.types.get(*ty);
-            type_kind = type_data.ty();
+            type_kind = type_data.type_kind();
         }
 
         match type_kind {
@@ -126,14 +126,14 @@ impl<'a> IrFormatter<'a> {
 
     pub fn ty(&self, handle: Type) -> String {
         let mut type_data = self.types.get(handle);
-        let mut type_kind = type_data.ty();
+        let mut type_kind = type_data.type_kind();
 
         let mut indirection = 0;
 
         while let crate::ty::TypeKind::Pointer { ty } = type_kind {
             indirection += 1;
             type_data = self.types.get(*ty);
-            type_kind = type_data.ty();
+            type_kind = type_data.type_kind();
         }
 
         match type_kind {
@@ -163,6 +163,9 @@ impl<'a> IrFormatter<'a> {
                 ConstantValue::Integer { ty, value } => {
                     format!("{value}_{}", self.ty(ty))
                 }
+                ConstantValue::Float { ty, value } => {
+                    format!("{value}_{}", self.ty(ty))
+                }
             }
         } else {
             format!("{value}")
@@ -189,11 +192,11 @@ pub(crate) fn format_instruction(
         Instruction::ArithmeticUnary { dst, op, value } => {
             format!(
                 "let {}: {} = {}.{} {}",
-                dst,
+                formatter.value(*dst),
                 formatter.value_type(*dst),
                 op,
                 formatter.value_type(*value),
-                value
+                formatter.value(*value)
             )
         }
         Instruction::Branch { target } => format!("branch {target}"),
@@ -201,7 +204,10 @@ pub(crate) fn format_instruction(
             condition,
             on_true,
             on_false,
-        } => format!("branch_if {condition} {on_true}, {on_false}"),
+        } => format!(
+            "branch_if {} {on_true}, {on_false}",
+            formatter.value(*condition)
+        ),
         Instruction::Call {
             function,
             arguments,
@@ -222,28 +228,28 @@ pub(crate) fn format_instruction(
         } => {
             format!(
                 "let {}: {} = {}.{} {}, {}",
-                dst,
+                formatter.value(*dst),
                 formatter.value_type(*dst),
                 pred,
                 formatter.value_type(*lhs),
-                lhs,
-                rhs
+                formatter.value(*lhs),
+                formatter.value(*rhs)
             )
         }
         Instruction::Load { dst, ptr } => {
             format!(
                 "let {}: {} = load.{} {}",
-                dst,
+                formatter.value(*dst),
                 formatter.value_type(*dst),
                 formatter.value_type(*ptr),
-                ptr
+                formatter.value(*ptr),
             )
         }
         Instruction::Return { value } => {
             if let Some(value) = value {
-                format!("ret {}", value)
+                format!("ret {}", formatter.value(*value))
             } else {
-                format!("ret")
+                "ret".to_string()
             }
         }
         Instruction::Select {
@@ -254,9 +260,9 @@ pub(crate) fn format_instruction(
         } => {
             format!(
                 "let {}: {} = select {}, {}, {}",
-                dst,
+                formatter.value(*dst),
                 formatter.value_type(*dst),
-                condition,
+                formatter.value(*condition),
                 on_true,
                 on_false
             )
@@ -264,14 +270,19 @@ pub(crate) fn format_instruction(
         Instruction::StackAlloc { dst, ty, size } => {
             format!(
                 "let {}: {} = stack_alloc.{} {}",
-                dst,
+                formatter.value(*dst),
                 formatter.value_type(*dst),
                 formatter.ty(*ty),
                 size
             )
         }
         Instruction::Store { ptr, value } => {
-            format!("store.{} {}, {}", formatter.value_type(*ptr), ptr, value)
+            format!(
+                "store.{} {}, {}",
+                formatter.value_type(*ptr),
+                formatter.value(*ptr),
+                formatter.value(*value)
+            )
         }
         Instruction::Nop => format!("nop"),
     }

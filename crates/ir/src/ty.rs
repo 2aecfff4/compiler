@@ -21,7 +21,7 @@ pub(crate) struct TypeData {
 }
 
 impl TypeData {
-    pub fn ty(&self) -> &TypeKind {
+    pub fn type_kind(&self) -> &TypeKind {
         &self.ty
     }
 }
